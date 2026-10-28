@@ -40,6 +40,12 @@ jobs:
       - name: Build
         run: cargo build --release --locked
 
+      # Ubuntu 23.10+ blocks the unprivileged user namespaces Chrome's sandbox
+      # needs. Lift that so CI keeps testing with the sandbox on.
+      - name: Allow user namespaces (Linux)
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Install chrome-headless-shell
         run: |
           line=$(npx -y @puppeteer/browsers install chrome-headless-shell@stable --path "$RUNNER_TEMP/chs" | tail -1)

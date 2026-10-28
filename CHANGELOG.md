@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.1] - 2026-10-28
+
+### Added
+- `--no-sandbox` / `AETHER_NO_SANDBOX=1` to run Chrome without its sandbox.
+
+### Fixed
+- On Ubuntu 23.10+ (AppArmor restricts unprivileged user namespaces) Chrome's sandbox
+  can't start and 0.1.0 failed with a cryptic websocket error. It now explains the two
+  ways out: allow user namespaces with `sysctl`, or pass `--no-sandbox`.
+
 ## [0.1.0] - 2026-10-28
 
 ### Added

@@ -139,6 +139,11 @@ struct Args {
     /// How frames are drawn and grabbed
     #[arg(long, value_enum, default_value_t = Mode::Auto)]
     mode: Mode,
+
+    /// Run Chrome without its sandbox. Needed on Ubuntu 23.10+ (AppArmor blocks
+    /// the user namespaces the sandbox uses). Only for pages you trust.
+    #[arg(long, env = "AETHER_NO_SANDBOX", value_parser = clap::builder::BoolishValueParser::new())]
+    no_sandbox: bool,
 }
 
 fn parse_size(s: &str) -> Result<(u32, u32)> {
@@ -174,7 +179,7 @@ async fn main() -> Result<()> {
     let mut builder = BrowserConfig::builder().chrome_executable(&args.chrome);
     // Chrome refuses to start sandboxed as root (typical in Docker/CI), so
     // only drop the sandbox there. Everyone else keeps it.
-    if running_as_root() {
+    if args.no_sandbox || running_as_root() {
         builder = builder.no_sandbox();
     }
     if begin_frame {
@@ -196,7 +201,16 @@ async fn main() -> Result<()> {
         .build()
         .map_err(|e| anyhow!(e))?;
 
-    let (mut browser, mut handler) = Browser::launch(config).await.context("launching chrome")?;
+    let (mut browser, mut handler) = match Browser::launch(config).await {
+        Ok(v) => v,
+        Err(e) if e.to_string().contains("No usable sandbox") => bail!(
+            "Chrome's sandbox can't start on this system (Ubuntu 23.10+ restricts the user \
+             namespaces it needs).\n\
+             Either allow them:  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0\n\
+             or run without the sandbox (trusted pages only):  --no-sandbox  /  AETHER_NO_SANDBOX=1"
+        ),
+        Err(e) => return Err(anyhow::Error::new(e).context("launching chrome")),
+    };
     let handler_task = tokio::spawn(async move { while handler.next().await.is_some() {} });
 
     // --- 2. Target (with BeginFrame control in begin-frame mode) -------------

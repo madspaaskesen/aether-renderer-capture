@@ -3,7 +3,7 @@
 > The HTML finger of Aether Renderer: turn any HTML/CSS/JS animation into a
 > **deterministic, transparent PNG sequence** — ready for `aether-renderer-core`.
 
-**Status:** proof of concept (v0.1.0). Same input → bit-identical frames, every run,
+**Status:** proof of concept (v0.1.1). Same input → bit-identical frames, every run,
 on any machine speed.
 
 ## Install
@@ -15,6 +15,10 @@ cargo install aether-renderer-capture
 npx @puppeteer/browsers install chrome-headless-shell@stable
 export AETHER_CHROME=/path/printed/above/chrome-headless-shell
 ```
+
+On **Ubuntu 23.10+** Chrome's sandbox is blocked by AppArmor. Either allow it
+(`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`) or pass
+`--no-sandbox` (trusted pages only).
 
 FFmpeg is only needed to turn the frames into video (directly, or through
 [`aether-renderer-core`](https://crates.io/crates/aether-renderer-core)).
@@ -43,6 +47,7 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | `-d, --duration` | 2.0 | Seconds |
 | `-s, --size` | 512x512 | `WIDTHxHEIGHT` |
 | `--chrome` / `AETHER_CHROME` | — | Path to **chrome-headless-shell** |
+| `--no-sandbox` / `AETHER_NO_SANDBOX` | off | Run Chrome without its sandbox (Ubuntu 23.10+, trusted pages only) |
 | `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (screenshot on macOS, begin-frame elsewhere) |
 
 Transparent pages (`html, body { background: transparent }`) give real alpha.
