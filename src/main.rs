@@ -11,7 +11,6 @@
 //!   unreliable): the frame clock shim runs rAF callbacks itself, then
 //!   `Page.captureScreenshot`.
 
-use std::io::Write as _;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -33,6 +32,9 @@ use chromiumoxide::cdp::browser_protocol::target::CreateTargetParams;
 use chromiumoxide::page::Page;
 use clap::{Parser, ValueEnum};
 use futures::StreamExt;
+
+mod sink;
+use sink::FrameSink;
 
 /// Virtual-time step while the page loads. Tiny, so the clock the page sees at
 /// frame 0 is effectively fixed no matter how many steps loading needs.
@@ -117,7 +119,8 @@ struct Args {
     #[arg(short, long)]
     input: String,
 
-    /// Output folder for frame_00000.png ... (ignored with --stdout)
+    /// Output: a folder, or a path ending in .zip, of frame_00000.png ...
+    /// Both are inputs aether-renderer-core reads directly. Ignored with --stdout.
     #[arg(short, long, default_value = "frames")]
     out: PathBuf,
 
@@ -341,15 +344,12 @@ async fn main() -> Result<()> {
     let base_ticks = monotonic_ms();
 
     // --- 4. Capture loop -----------------------------------------------------
-    if !args.stdout {
-        std::fs::create_dir_all(&args.out)?;
-    }
-    let pb = if args.stdout {
+    let mut sink = FrameSink::open(&args.out, args.stdout)?;
+    let pb = if sink.is_stdout() {
         indicatif::ProgressBar::hidden()
     } else {
         indicatif::ProgressBar::new(total_frames)
     };
-    let mut stdout = std::io::stdout().lock();
     let mut last_png: Option<Vec<u8>> = None;
     let mut reused = 0u64;
 
@@ -422,15 +422,11 @@ async fn main() -> Result<()> {
             }
         };
 
-        if args.stdout {
-            stdout.write_all(&png)?;
-        } else {
-            std::fs::write(args.out.join(format!("frame_{i:05}.png")), &png)?;
-        }
+        sink.write(i, &png)?;
         pb.inc(1);
     }
     pb.finish_and_clear();
-    stdout.flush()?;
+    sink.finish()?;
 
     eprintln!(
         "captured {total_frames} frames @ {} fps ({width}x{height}, {mode:?} mode), {reused} reused (no damage)",

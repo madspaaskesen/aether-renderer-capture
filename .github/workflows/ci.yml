@@ -65,6 +65,25 @@ jobs:
           echo "run1 $h1"; echo "run2 $h2"
           test "$h1" = "$h2"
 
+      # ZIP output (aether-renderer-core's other input type) must hold the same
+      # frames, in order, and be byte-identical itself between runs.
+      - name: ZIP output matches the folder
+        run: |
+          bin=target/release/aether-renderer-capture
+          "$bin" -i examples/orbit.html -o z1.zip --fps 30 -d 1
+          "$bin" -i examples/orbit.html -o z2.zip --fps 30 -d 1
+          py=$(command -v python3 || command -v python)
+          "$py" - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile("z1.zip")
+          names = z.namelist()
+          assert names == sorted(names) and len(names) == 30, names
+          for n in names:
+              assert z.read(n) == open(f"run1/{n}", "rb").read(), n
+          assert open("z1.zip", "rb").read() == open("z2.zip", "rb").read()
+          print("zip ok:", len(names), "frames")
+          PY
+
       # On Linux both modes are available and must agree pixel for pixel.
       - name: begin-frame and screenshot modes match
         if: runner.os == 'Linux'

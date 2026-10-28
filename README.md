@@ -28,9 +28,12 @@ FFmpeg is only needed to turn the frames into video (directly, or through
 ```bash
 export AETHER_CHROME=/path/to/chrome-headless-shell
 
-# 1. PNG folder -> works with aether-renderer-core today, no changes needed
+# 1. PNG folder or ZIP -> both are aether-renderer-core inputs
 aether-renderer-capture -i anim.html -o frames --fps 30 -d 4 -s 1080x1080
 aether-renderer-core --input frames --output anim.webm --fps 30 --format webm
+
+aether-renderer-capture -i anim.html -o anim.zip --fps 30 -d 4 -s 1080x1080
+aether-renderer-core --input anim.zip --output anim.webm --fps 30 --format webm
 
 # 2. Stream straight into ffmpeg (no files on disk)
 aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
@@ -41,7 +44,7 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | Flag | Default | |
 |---|---|---|
 | `-i, --input` | — | HTML file or URL |
-| `-o, --out` | `frames` | Output folder (`frame_00000.png` …) |
+| `-o, --out` | `frames` | Output folder, or a `.zip`, of `frame_00000.png` … |
 | `--stdout` | off | Concatenated PNG stream on stdout |
 | `--fps` | 30 | |
 | `-d, --duration` | 2.0 | Seconds |

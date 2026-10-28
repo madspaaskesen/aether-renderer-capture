@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- ZIP output: `-o anim.zip` writes the frames as an uncompressed ZIP in the layout
+  `aether-renderer-core` reads (`frame_00000.png` … at the top level, in frame order).
+  A fixed timestamp makes the ZIP itself byte-identical between runs, and it is
+  written as `anim.zip.partial` first, so a failed capture never leaves a ZIP that
+  looks complete.
+
 ## [0.1.1] - 2026-10-28
 
 ### Added
