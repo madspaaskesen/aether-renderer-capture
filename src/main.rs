@@ -414,7 +414,8 @@ fn running_as_root() -> bool {
 }
 
 /// Host monotonic clock in ms — the same clock Chrome's TimeTicks use
-/// (CLOCK_MONOTONIC on Linux, mach_absolute_time on macOS).
+/// (CLOCK_MONOTONIC on Linux, mach_absolute_time on macOS, QPC on Windows).
+#[cfg(unix)]
 fn monotonic_ms() -> f64 {
     #[cfg(target_os = "macos")]
     const CLOCK: libc::clockid_t = libc::CLOCK_UPTIME_RAW;
@@ -427,6 +428,21 @@ fn monotonic_ms() -> f64 {
     // SAFETY: clock_gettime writes into a valid, owned timespec.
     unsafe { libc::clock_gettime(CLOCK, &mut ts) };
     ts.tv_sec as f64 * 1000.0 + ts.tv_nsec as f64 / 1_000_000.0
+}
+
+#[cfg(windows)]
+fn monotonic_ms() -> f64 {
+    use windows_sys::Win32::System::Performance::{
+        QueryPerformanceCounter, QueryPerformanceFrequency,
+    };
+    let (mut count, mut freq) = (0i64, 0i64);
+    // SAFETY: both calls write into valid, owned i64s and cannot fail on
+    // Windows XP or later.
+    unsafe {
+        QueryPerformanceCounter(&mut count);
+        QueryPerformanceFrequency(&mut freq);
+    }
+    count as f64 * 1000.0 / freq as f64
 }
 
 /// Let virtual time run for `budget_ms` and block until Chrome reports the

@@ -16,4 +16,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `--mode screenshot` (default on macOS, where Chrome has no BeginFrame control):
   the frame clock runs rAF callbacks itself and frames are grabbed with
   `Page.captureScreenshot`. Output is bit-identical to `--mode begin-frame`.
+- Windows support: the BeginFrame clock uses QueryPerformanceCounter (the same
+  clock as Chrome's TimeTicks) instead of `clock_gettime`, which Windows lacks.
+- CI on Linux, macOS and Windows: captures the example twice and fails unless the
+  frames are byte-identical; on Linux it also checks both modes agree.
+- Release workflow that attaches binaries for Linux, macOS (arm64 + x86_64) and Windows.
 - Chrome's sandbox stays on; it is only disabled when running as root (Docker/CI).
