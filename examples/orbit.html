@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: transparent; width: 512px; height: 512px; overflow: hidden; }
+  /* CSS animation: driven by BeginFrame frameTimeTicks */
+  .ring {
+    position: absolute; left: 106px; top: 106px; width: 300px; height: 300px;
+    border-radius: 50%; border: 6px solid rgba(120, 200, 255, .8);
+    border-top-color: transparent; box-sizing: border-box;
+    animation: spin 2s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  canvas { position: absolute; inset: 0; }
+  #clock { position: absolute; bottom: 12px; width: 100%; text-align: center;
+           font: 600 18px monospace; color: #fff; text-shadow: 0 0 6px #000; }
+</style>
+</head>
+<body>
+  <div class="ring"></div>
+  <canvas id="c" width="512" height="512"></canvas>
+  <div id="clock"></div>
+<script>
+  // JS animation: driven by rAF + performance.now (virtual time)
+  const ctx = document.getElementById('c').getContext('2d');
+  const t0 = performance.now();
+  let ticks = 0;
+  setInterval(() => ticks++, 100); // timers follow virtual time too
+  function draw(now) {
+    const t = (now - t0) / 1000;
+    ctx.clearRect(0, 0, 512, 512);
+    for (let k = 0; k < 3; k++) {
+      const a = t * Math.PI + k * 2.094;
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${k * 120 + t * 90}, 90%, 60%, .85)`;
+      ctx.arc(256 + Math.cos(a) * 110, 256 + Math.sin(a) * 110, 28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    document.getElementById('clock').textContent =
+      `t=${t.toFixed(3)}s  timers=${ticks}  ${new Date().toISOString().slice(11, 23)}`;
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+</script>
+</body>
+</html>
