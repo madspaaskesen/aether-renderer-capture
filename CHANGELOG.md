@@ -14,6 +14,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   ways out: allow user namespaces with `sysctl`, or pass `--no-sandbox`.
 - Windows: local files were turned into an invalid `file://\\?\C:\...` URL, so the
   page never loaded. File paths now become proper file URLs (spaces and non-ASCII too).
+- Windows: `--mode auto` now uses `screenshot` (BeginFrame returns no image for the
+  first frame there). `begin-frame` stays the default on Linux only.
 - Page loading has a 60 s wall-clock timeout, and a failed navigation reports the
   real reason (e.g. `net::ERR_...`) together with the URL.
 

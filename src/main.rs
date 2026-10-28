@@ -5,10 +5,11 @@
 //! sequence (or a PNG stream on stdout for `ffmpeg -f image2pipe`).
 //!
 //! Two capture modes:
-//! - `begin-frame` (Linux/Windows): Chrome only draws when we issue
+//! - `begin-frame` (Linux): Chrome only draws when we issue
 //!   `HeadlessExperimental.beginFrame`, which also returns the screenshot.
-//! - `screenshot` (macOS, where BeginFrame control is unsupported): the frame
-//!   clock shim runs rAF callbacks itself, then `Page.captureScreenshot`.
+//! - `screenshot` (macOS and Windows, where BeginFrame is unsupported or
+//!   unreliable): the frame clock shim runs rAF callbacks itself, then
+//!   `Page.captureScreenshot`.
 
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -97,9 +98,9 @@ const FRAME_CLOCK_SHIM: &str = r#"(() => {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 enum Mode {
-    /// begin-frame everywhere except macOS, which gets screenshot
+    /// begin-frame on Linux, screenshot on macOS and Windows
     Auto,
-    /// HeadlessExperimental.beginFrame (not available on macOS)
+    /// HeadlessExperimental.beginFrame (Linux; unsupported on macOS)
     BeginFrame,
     /// Shim-driven rAF + Page.captureScreenshot (works everywhere)
     Screenshot,
@@ -181,8 +182,10 @@ async fn main() -> Result<()> {
     let interval_ms = 1000.0 / args.fps as f64;
     let total_frames = (args.duration * args.fps as f64).round() as u64;
     let mode = match args.mode {
-        Mode::Auto if cfg!(target_os = "macos") => Mode::Screenshot,
-        Mode::Auto => Mode::BeginFrame,
+        // BeginFrame is only dependable on Linux: unsupported on macOS, and on
+        // Windows the first frame comes back without a screenshot.
+        Mode::Auto if cfg!(target_os = "linux") => Mode::BeginFrame,
+        Mode::Auto => Mode::Screenshot,
         m => m,
     };
     let begin_frame = mode == Mode::BeginFrame;
@@ -410,9 +413,12 @@ async fn main() -> Result<()> {
             // the sequence never has holes.
             None => {
                 reused += 1;
-                last_png
-                    .clone()
-                    .ok_or_else(|| anyhow!("first frame produced no screenshot"))?
+                last_png.clone().ok_or_else(|| {
+                    anyhow!(
+                        "Chrome returned no image for the first frame in begin-frame \
+                             mode (known on Windows). Use --mode screenshot."
+                    )
+                })?
             }
         };
 

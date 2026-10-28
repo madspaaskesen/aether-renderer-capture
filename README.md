@@ -48,7 +48,7 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | `-s, --size` | 512x512 | `WIDTHxHEIGHT` |
 | `--chrome` / `AETHER_CHROME` | — | Path to **chrome-headless-shell** |
 | `--no-sandbox` / `AETHER_NO_SANDBOX` | off | Run Chrome without its sandbox (Ubuntu 23.10+, trusted pages only) |
-| `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (screenshot on macOS, begin-frame elsewhere) |
+| `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (begin-frame on Linux, screenshot on macOS and Windows) |
 
 Transparent pages (`html, body { background: transparent }`) give real alpha.
 
@@ -59,11 +59,12 @@ ways to draw and grab a frame, and both give bit-identical output:
 
 | Mode | Platforms | How a frame is drawn |
 |---|---|---|
-| `begin-frame` | Linux, Windows | Chrome only draws when we send `HeadlessExperimental.beginFrame`, which returns the PNG |
-| `screenshot` | everywhere (default on macOS) | The frame-clock shim runs rAF callbacks itself, then `Page.captureScreenshot` |
+| `begin-frame` | Linux | Chrome only draws when we send `HeadlessExperimental.beginFrame`, which returns the PNG |
+| `screenshot` | everywhere (default on macOS and Windows) | The frame-clock shim runs rAF callbacks itself, then `Page.captureScreenshot` |
 
-`auto` picks `screenshot` on macOS, because Chrome doesn't support BeginFrame
-control there. The steps below describe `begin-frame`; `screenshot` mode is the
+`auto` picks `screenshot` on macOS (Chrome doesn't support BeginFrame control
+there) and on Windows (BeginFrame returns no image for the first frame). The
+steps below describe `begin-frame`; `screenshot` mode is the
 same minus the BeginFrame flags.
 
 1. **chrome-headless-shell** is launched with `--deterministic-mode`,
