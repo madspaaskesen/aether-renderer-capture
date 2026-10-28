@@ -43,12 +43,23 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | `-d, --duration` | 2.0 | Seconds |
 | `-s, --size` | 512x512 | `WIDTHxHEIGHT` |
 | `--chrome` / `AETHER_CHROME` | — | Path to **chrome-headless-shell** |
+| `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (screenshot on macOS, begin-frame elsewhere) |
 
 Transparent pages (`html, body { background: transparent }`) give real alpha.
 
 ## How it works
 
-Every frame is stepped, never sampled from a running clock:
+Every frame is stepped, never sampled from a running clock. There are two
+ways to draw and grab a frame, and both give bit-identical output:
+
+| Mode | Platforms | How a frame is drawn |
+|---|---|---|
+| `begin-frame` | Linux, Windows | Chrome only draws when we send `HeadlessExperimental.beginFrame`, which returns the PNG |
+| `screenshot` | everywhere (default on macOS) | The frame-clock shim runs rAF callbacks itself, then `Page.captureScreenshot` |
+
+`auto` picks `screenshot` on macOS, because Chrome doesn't support BeginFrame
+control there. The steps below describe `begin-frame`; `screenshot` mode is the
+same minus the BeginFrame flags.
 
 1. **chrome-headless-shell** is launched with `--deterministic-mode`,
    `--enable-begin-frame-control`, `--run-all-compositor-stages-before-draw`.
@@ -79,6 +90,8 @@ injected before any page code replaces them with one exact clock:
 
 ### Gotchas learned the hard way
 
+- BeginFrame control is not supported on macOS at all
+  ("BeginFrameControl is not supported on MacOS yet"), hence `screenshot` mode.
 - `frameTimeTicks` must be in Chrome's TimeTicks domain (host monotonic clock).
   Small values like `33.3` are silently ignored and rAF/CSS freeze.
 - With virtual time fully paused, the `load` event never fires.
@@ -88,8 +101,10 @@ injected before any page code replaces them with one exact clock:
 
 - 10/10 runs bit-identical (60 frames, sha256 of all PNGs), also under 4× CPU load
 - 30 fps frame 15 == 60 fps frame 30 (same instant, bit-identical)
+- `screenshot` mode produces the exact same frames as `begin-frame` mode
 - Alpha survives into VP9 WebM (`alpha_mode=1`)
-- 512×512: ~1 s for 60 frames; 1920×1080: ~3.5 s for 60 frames (software GL)
+- 512×512: ~1 s for 60 frames; 1920×1080: ~3.5 s (`begin-frame`) / ~6.5 s
+  (`screenshot`) for 60 frames (software GL, Linux)
 
 ## Known limits
 

@@ -1,8 +1,14 @@
 //! aether-renderer-capture — proof of concept
 //!
-//! Renders an HTML animation frame-by-frame in chrome-headless-shell using
-//! deterministic BeginFrame control + virtual time, and writes a transparent
-//! PNG sequence (or a PNG stream on stdout for `ffmpeg -f image2pipe`).
+//! Renders an HTML animation frame-by-frame in chrome-headless-shell with
+//! virtual time and an injected frame clock, and writes a transparent PNG
+//! sequence (or a PNG stream on stdout for `ffmpeg -f image2pipe`).
+//!
+//! Two capture modes:
+//! - `begin-frame` (Linux/Windows): Chrome only draws when we issue
+//!   `HeadlessExperimental.beginFrame`, which also returns the screenshot.
+//! - `screenshot` (macOS, where BeginFrame control is unsupported): the frame
+//!   clock shim runs rAF callbacks itself, then `Page.captureScreenshot`.
 
 use std::io::Write as _;
 use std::path::PathBuf;
@@ -19,9 +25,12 @@ use chromiumoxide::cdp::browser_protocol::emulation::{
 use chromiumoxide::cdp::browser_protocol::headless_experimental::{
     BeginFrameParams, ScreenshotParams, ScreenshotParamsFormat,
 };
+use chromiumoxide::cdp::browser_protocol::page::{
+    CaptureScreenshotFormat, CaptureScreenshotParams,
+};
 use chromiumoxide::cdp::browser_protocol::target::CreateTargetParams;
 use chromiumoxide::page::Page;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use futures::StreamExt;
 
 /// Virtual-time step while the page loads. Tiny, so the clock the page sees at
@@ -35,12 +44,23 @@ const WARMUP_STEP_MS: f64 = 0.001;
 ///  - performance.now() and rAF timestamps = exact frame time (0 while loading)
 ///  - CSS animations / transitions / WAAPI are paused and seeked to the exact
 ///    frame time each frame, so the compositor never uses its own clock.
+///  - In screenshot mode (`__MANUAL_RAF__` = true) rAF callbacks are queued and
+///    run exactly once per frame by `step()`, since Chrome's own frame
+///    scheduling isn't under our control there.
 const FRAME_CLOCK_SHIM: &str = r#"(() => {
+  const manualRaf = __MANUAL_RAF__;
   let now = 0;
   const started = new WeakMap();
-  const raf = window.requestAnimationFrame.bind(window);
   performance.now = () => now;
-  window.requestAnimationFrame = (cb) => raf(() => cb(now));
+
+  let rafQueue = new Map(), rafNextId = 1;
+  if (manualRaf) {
+    window.requestAnimationFrame = (cb) => { const id = rafNextId++; rafQueue.set(id, cb); return id; };
+    window.cancelAnimationFrame = (id) => { rafQueue.delete(id); };
+  } else {
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb) => raf(() => cb(now));
+  }
 
   // Date / Date.now() follow the same frame clock from a fixed epoch.
   const RealDate = Date, EPOCH = 1700000000000;
@@ -56,6 +76,13 @@ const FRAME_CLOCK_SHIM: &str = r#"(() => {
   Object.defineProperty(window, '__aether', { value: Object.freeze({
     step(t) {
       now = t;
+      if (manualRaf) {
+        const due = rafQueue;
+        rafQueue = new Map();
+        for (const cb of due.values()) {
+          try { cb(t); } catch (e) { console.error(e); }
+        }
+      }
       for (const a of document.getAnimations()) {
         if (!started.has(a)) started.set(a, t);
         a.pause();
@@ -64,6 +91,16 @@ const FRAME_CLOCK_SHIM: &str = r#"(() => {
     },
   }) });
 })();"#;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum Mode {
+    /// begin-frame everywhere except macOS, which gets screenshot
+    Auto,
+    /// HeadlessExperimental.beginFrame (not available on macOS)
+    BeginFrame,
+    /// Shim-driven rAF + Page.captureScreenshot (works everywhere)
+    Screenshot,
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -98,6 +135,10 @@ struct Args {
     /// Path to chrome-headless-shell (or set AETHER_CHROME)
     #[arg(long, env = "AETHER_CHROME")]
     chrome: PathBuf,
+
+    /// How frames are drawn and grabbed
+    #[arg(long, value_enum, default_value_t = Mode::Auto)]
+    mode: Mode,
 }
 
 fn parse_size(s: &str) -> Result<(u32, u32)> {
@@ -122,6 +163,12 @@ async fn main() -> Result<()> {
     let url = to_url(&args.input)?;
     let interval_ms = 1000.0 / args.fps as f64;
     let total_frames = (args.duration * args.fps as f64).round() as u64;
+    let mode = match args.mode {
+        Mode::Auto if cfg!(target_os = "macos") => Mode::Screenshot,
+        Mode::Auto => Mode::BeginFrame,
+        m => m,
+    };
+    let begin_frame = mode == Mode::BeginFrame;
 
     // --- 1. Launch chrome-headless-shell with deterministic flags -----------
     let mut builder = BrowserConfig::builder().chrome_executable(&args.chrome);
@@ -130,11 +177,14 @@ async fn main() -> Result<()> {
     if running_as_root() {
         builder = builder.no_sandbox();
     }
+    if begin_frame {
+        builder = builder
+            .arg("deterministic-mode")
+            .arg("enable-begin-frame-control")
+            .arg("run-all-compositor-stages-before-draw");
+    }
     let config = builder
         .window_size(width, height)
-        .arg("deterministic-mode")
-        .arg("enable-begin-frame-control")
-        .arg("run-all-compositor-stages-before-draw")
         .arg("disable-threaded-animation")
         .arg("disable-threaded-scrolling")
         .arg("disable-checker-imaging")
@@ -149,10 +199,10 @@ async fn main() -> Result<()> {
     let (mut browser, mut handler) = Browser::launch(config).await.context("launching chrome")?;
     let handler_task = tokio::spawn(async move { while handler.next().await.is_some() {} });
 
-    // --- 2. Target with BeginFrame control ------------------------------------
+    // --- 2. Target (with BeginFrame control in begin-frame mode) -------------
     let target = CreateTargetParams::builder()
         .url("about:blank")
-        .enable_begin_frame_control(true)
+        .enable_begin_frame_control(begin_frame)
         .width(width as i64)
         .height(height as i64)
         .build()
@@ -198,7 +248,9 @@ async fn main() -> Result<()> {
     .await?;
 
     // Give the page one exact, jitter-free clock (see FRAME_CLOCK_SHIM).
-    page.evaluate_on_new_document(FRAME_CLOCK_SHIM).await?;
+    let shim =
+        FRAME_CLOCK_SHIM.replace("__MANUAL_RAF__", if begin_frame { "false" } else { "true" });
+    page.evaluate_on_new_document(shim).await?;
 
     // --- 3. Load the page ----------------------------------------------------
     // While virtual time is fully paused, the `load` task never runs. So during
@@ -285,9 +337,9 @@ async fn main() -> Result<()> {
         .context("stepping page clock")?;
 
         // 4c. Draw exactly one frame and grab it.
-        let ticks = base_ticks + i as f64 * interval_ms;
-        let res = page
-            .execute(
+        let shot: Option<String> = if begin_frame {
+            let ticks = base_ticks + i as f64 * interval_ms;
+            page.execute(
                 BeginFrameParams::builder()
                     .frame_time_ticks(ticks)
                     .interval(interval_ms)
@@ -298,12 +350,25 @@ async fn main() -> Result<()> {
                     )
                     .build(),
             )
-            .await?;
+            .await?
+            .result
+            .screenshot_data
+            .map(|b| AsRef::<str>::as_ref(&b).to_string())
+        } else {
+            let res = page
+                .execute(
+                    CaptureScreenshotParams::builder()
+                        .format(CaptureScreenshotFormat::Png)
+                        .from_surface(true)
+                        .build(),
+                )
+                .await?;
+            Some(AsRef::<str>::as_ref(&res.result.data).to_string())
+        };
 
-        let png = match res.result.screenshot_data {
+        let png = match shot {
             Some(b64) => {
-                let bytes =
-                    base64::engine::general_purpose::STANDARD.decode(AsRef::<str>::as_ref(&b64))?;
+                let bytes = base64::engine::general_purpose::STANDARD.decode(b64)?;
                 last_png = Some(bytes.clone());
                 bytes
             }
@@ -328,7 +393,7 @@ async fn main() -> Result<()> {
     stdout.flush()?;
 
     eprintln!(
-        "captured {total_frames} frames @ {} fps ({width}x{height}), {reused} reused (no damage)",
+        "captured {total_frames} frames @ {} fps ({width}x{height}, {mode:?} mode), {reused} reused (no damage)",
         args.fps
     );
 
