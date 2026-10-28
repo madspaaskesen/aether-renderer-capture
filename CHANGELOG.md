@@ -12,6 +12,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - On Ubuntu 23.10+ (AppArmor restricts unprivileged user namespaces) Chrome's sandbox
   can't start and 0.1.0 failed with a cryptic websocket error. It now explains the two
   ways out: allow user namespaces with `sysctl`, or pass `--no-sandbox`.
+- Windows: local files were turned into an invalid `file://\\?\C:\...` URL, so the
+  page never loaded. File paths now become proper file URLs (spaces and non-ASCII too).
+- Page loading has a 60 s wall-clock timeout, and a failed navigation reports the
+  real reason (e.g. `net::ERR_...`) together with the URL.
 
 ## [0.1.0] - 2026-10-28
 

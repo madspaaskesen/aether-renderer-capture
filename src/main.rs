@@ -37,6 +37,9 @@ use futures::StreamExt;
 /// frame 0 is effectively fixed no matter how many steps loading needs.
 const WARMUP_STEP_MS: f64 = 0.001;
 
+/// Real (wall-clock) time a page gets to load before we give up.
+const LOAD_TIMEOUT: Duration = Duration::from_secs(60);
+
 /// Injected before any page script runs. Chrome coarsens performance.now(),
 /// rAF timestamps and the animation timeline to 100µs *with random jitter*
 /// (Spectre mitigation), so even under virtual time two runs differ by a
@@ -157,8 +160,17 @@ fn to_url(input: &str) -> Result<String> {
     if input.contains("://") {
         return Ok(input.to_string());
     }
-    let p = std::fs::canonicalize(input).with_context(|| format!("cannot find {input}"))?;
-    Ok(format!("file://{}", p.display()))
+    let path = std::path::Path::new(input);
+    if !path.is_file() {
+        bail!("cannot find {input}");
+    }
+    // `path::absolute` (not `canonicalize`): on Windows canonicalize returns a
+    // verbatim `\\?\C:\...` path, which is not a valid file:// URL. `Url`
+    // does the per-platform escaping (drive letters, backslashes, spaces).
+    let abs = std::path::absolute(path)?;
+    let url = url::Url::from_file_path(&abs)
+        .map_err(|_| anyhow!("cannot turn {} into a file:// URL", abs.display()))?;
+    Ok(url.into())
 }
 
 #[tokio::main]
@@ -281,7 +293,8 @@ async fn main() -> Result<()> {
     };
     let mut ready = false;
     let mut warmup_steps = 0u32;
-    for _ in 0..2000 {
+    let deadline = std::time::Instant::now() + LOAD_TIMEOUT;
+    while std::time::Instant::now() < deadline {
         if nav.is_finished() {
             ready = page
                 .evaluate(
@@ -305,9 +318,16 @@ async fn main() -> Result<()> {
         .await?;
     }
     if !ready {
-        bail!("page did not finish loading (readyState/fonts) within the warm-up budget");
+        // Report why navigation failed (bad URL, net error) when we know.
+        if nav.is_finished() {
+            nav.await?.with_context(|| format!("loading {url}"))?;
+        }
+        bail!(
+            "page did not finish loading (readyState/fonts) within {}s: {url}",
+            LOAD_TIMEOUT.as_secs()
+        );
     }
-    nav.await??;
+    nav.await?.with_context(|| format!("loading {url}"))?;
     if std::env::var("AETHER_DEBUG").is_ok() {
         eprintln!("page ready after {warmup_steps} warm-up steps");
     }
