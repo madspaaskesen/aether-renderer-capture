@@ -64,8 +64,8 @@ ways to draw and grab a frame, and both give bit-identical output:
 
 `auto` picks `screenshot` on macOS (Chrome doesn't support BeginFrame control
 there) and on Windows (BeginFrame returns no image for the first frame). The
-steps below describe `begin-frame`; `screenshot` mode is the
-same minus the BeginFrame flags.
+steps below describe `begin-frame`; `screenshot` mode is the same minus the
+BeginFrame flags.
 
 1. **chrome-headless-shell** is launched with `--deterministic-mode`,
    `--enable-begin-frame-control`, `--run-all-compositor-stages-before-draw`.
@@ -100,6 +100,9 @@ injected before any page code replaces them with one exact clock:
   ("BeginFrameControl is not supported on MacOS yet"), hence `screenshot` mode.
 - `frameTimeTicks` must be in Chrome's TimeTicks domain (host monotonic clock).
   Small values like `33.3` are silently ignored and rAF/CSS freeze.
+- On Windows, `canonicalize()` returns `\\?\C:\...`, which isn't a valid
+  `file://` URL. Build file URLs with `Url::from_file_path`.
+- Ubuntu 23.10+ blocks the user namespaces Chrome's sandbox needs.
 - With virtual time fully paused, the `load` event never fires.
 - chromiumoxide adds the `--` itself: `.arg("enable-begin-frame-control")`.
 
@@ -109,14 +112,15 @@ injected before any page code replaces them with one exact clock:
 - 30 fps frame 15 == 60 fps frame 30 (same instant, bit-identical)
 - `screenshot` mode produces the exact same frames as `begin-frame` mode
 - macOS (Apple Silicon, Chrome 156): repeated runs bit-identical in `screenshot` mode
+- CI captures twice on Linux, macOS and Windows and requires identical frames
+- Alpha survives into VP9 WebM (`alpha_mode=1`)
+- 512×512: ~1 s for 60 frames; 1920×1080: ~3.5 s (`begin-frame`) / ~6.5 s
+  (`screenshot`) for 60 frames (software GL, Linux)
 
 Determinism holds per machine and Chrome version. Across operating systems or
 Chrome versions, fonts and anti-aliasing are rasterized slightly differently,
 so frames look the same but are not byte-identical. Pin the
 chrome-headless-shell version if you need identical output on several machines.
-- Alpha survives into VP9 WebM (`alpha_mode=1`)
-- 512×512: ~1 s for 60 frames; 1920×1080: ~3.5 s (`begin-frame`) / ~6.5 s
-  (`screenshot`) for 60 frames (software GL, Linux)
 
 ## Known limits
 
