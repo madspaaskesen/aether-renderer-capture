@@ -52,6 +52,22 @@ jobs:
           echo "$line"
           echo "AETHER_CHROME=${line#* }" >> "$GITHUB_ENV"
 
+      # ffmpeg for the library test that renders a capture with aether-renderer-core.
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+
+      # Library API: callbacks, png_stream, errors, early stop, and the GUI's
+      # path (png_stream -> aether_renderer_core::render_stream).
+      - name: Library tests
+        run: cargo test --release --locked
+
       # Same page twice -> frames must be byte-identical. That is the whole point
       # of this crate, so it is the test.
       - name: Capture twice and compare

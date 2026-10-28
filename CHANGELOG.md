@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Library API.** `CaptureOptions` (builder: `size`, `fps`, `duration_secs`, `mode`,
+  `no_sandbox`), `async fn capture(&opts, |index, png| ...)`, and
+  `png_stream(opts) -> (PngStream, CaptureHandle)`: a `Read` of PNG files back to back,
+  produced on its own thread, that plugs straight into
+  `aether_renderer_core::render_stream`. Capture errors reach the reader; dropping the
+  stream stops the capture and closes Chrome. The CLI is now a thin layer over it.
+- Options are checked before Chrome starts (missing HTML file or Chrome, zero size,
+  fps or frames), with a hint on how to install chrome-headless-shell.
+- CI runs the library tests on Linux, macOS and Windows, including a capture rendered
+  by `aether-renderer-core` 0.7 with alpha intact.
 - ZIP output: `-o anim.zip` writes the frames as an uncompressed ZIP in the layout
   `aether-renderer-core` reads (`frame_00000.png` … at the top level, in frame order).
   A fixed timestamp makes the ZIP itself byte-identical between runs, and it is
