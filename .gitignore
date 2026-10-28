@@ -6,3 +6,4 @@
 *.webm
 *.mp4
 *.gif
+/chrome-headless-shell/

@@ -2,11 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
+  workflow_dispatch: # "Run workflow" button in the Actions tab, for any branch
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  lint:
+    name: fmt + clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,6 +19,67 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --check
+      - run: cargo fmt --all -- --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo build --locked
+
+  capture:
+    name: capture (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --locked
+
+      # Ubuntu 23.10+ blocks the unprivileged user namespaces Chrome's sandbox
+      # needs. Lift that so CI keeps testing with the sandbox on.
+      - name: Allow user namespaces (Linux)
+        if: runner.os == 'Linux'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Install chrome-headless-shell
+        run: |
+          line=$(npx -y @puppeteer/browsers install chrome-headless-shell@stable --path "$RUNNER_TEMP/chs" | tail -1)
+          echo "$line"
+          echo "AETHER_CHROME=${line#* }" >> "$GITHUB_ENV"
+
+      # Same page twice -> frames must be byte-identical. That is the whole point
+      # of this crate, so it is the test.
+      - name: Capture twice and compare
+        run: |
+          bin=target/release/aether-renderer-capture
+          hash() { cat "$1"/*.png | (sha256sum 2>/dev/null || shasum -a 256) | cut -c1-64; }
+          "$bin" -i examples/orbit.html -o run1 --fps 30 -d 1
+          "$bin" -i examples/orbit.html -o run2 --fps 30 -d 1
+          test "$(ls run1 | wc -l)" -eq 30
+          h1=$(hash run1); h2=$(hash run2)
+          echo "run1 $h1"; echo "run2 $h2"
+          test "$h1" = "$h2"
+
+      # On Linux both modes are available and must agree pixel for pixel.
+      - name: begin-frame and screenshot modes match
+        if: runner.os == 'Linux'
+        run: |
+          bin=target/release/aether-renderer-capture
+          "$bin" -i examples/orbit.html -o bf --fps 30 -d 1 --mode begin-frame
+          "$bin" -i examples/orbit.html -o ss --fps 30 -d 1 --mode screenshot
+          test "$(cat bf/*.png | sha256sum)" = "$(cat ss/*.png | sha256sum)"
+
+      - name: Upload frames on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frames-${{ matrix.os }}
+          path: |
+            run1
+            run2
+          if-no-files-found: ignore
