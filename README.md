@@ -102,6 +102,12 @@ injected before any page code replaces them with one exact clock:
 - 10/10 runs bit-identical (60 frames, sha256 of all PNGs), also under 4× CPU load
 - 30 fps frame 15 == 60 fps frame 30 (same instant, bit-identical)
 - `screenshot` mode produces the exact same frames as `begin-frame` mode
+- macOS (Apple Silicon, Chrome 156): repeated runs bit-identical in `screenshot` mode
+
+Determinism holds per machine and Chrome version. Across operating systems or
+Chrome versions, fonts and anti-aliasing are rasterized slightly differently,
+so frames look the same but are not byte-identical. Pin the
+chrome-headless-shell version if you need identical output on several machines.
 - Alpha survives into VP9 WebM (`alpha_mode=1`)
 - 512×512: ~1 s for 60 frames; 1920×1080: ~3.5 s (`begin-frame`) / ~6.5 s
   (`screenshot`) for 60 frames (software GL, Linux)
