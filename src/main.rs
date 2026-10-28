@@ -124,9 +124,13 @@ async fn main() -> Result<()> {
     let total_frames = (args.duration * args.fps as f64).round() as u64;
 
     // --- 1. Launch chrome-headless-shell with deterministic flags -----------
-    let config = BrowserConfig::builder()
-        .chrome_executable(&args.chrome)
-        .no_sandbox()
+    let mut builder = BrowserConfig::builder().chrome_executable(&args.chrome);
+    // Chrome refuses to start sandboxed as root (typical in Docker/CI), so
+    // only drop the sandbox there. Everyone else keeps it.
+    if running_as_root() {
+        builder = builder.no_sandbox();
+    }
+    let config = builder
         .window_size(width, height)
         .arg("deterministic-mode")
         .arg("enable-begin-frame-control")
@@ -331,6 +335,17 @@ async fn main() -> Result<()> {
     browser.close().await.ok();
     handler_task.abort();
     Ok(())
+}
+
+#[cfg(unix)]
+fn running_as_root() -> bool {
+    // SAFETY: geteuid has no preconditions and cannot fail.
+    unsafe { libc::geteuid() == 0 }
+}
+
+#[cfg(not(unix))]
+fn running_as_root() -> bool {
+    false
 }
 
 /// Host monotonic clock in ms — the same clock Chrome's TimeTicks use

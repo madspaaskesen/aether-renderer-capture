@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-10-28
 
 ### Added
 - Proof of concept: capture an HTML page as a deterministic, transparent PNG sequence
@@ -13,3 +13,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Frame-clock shim that pins `performance.now()`, rAF timestamps, `Date` and all
   CSS/WAAPI animations to the exact frame time, removing Chrome's timer jitter.
 - `examples/orbit.html` demo (CSS animation, canvas + rAF, timers, Date).
+- Chrome's sandbox stays on; it is only disabled when running as root (Docker/CI).

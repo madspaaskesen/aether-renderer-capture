@@ -9,6 +9,8 @@ repository = "https://github.com/madspaaskesen/aether-renderer-capture"
 homepage = "https://github.com/madspaaskesen/aether-renderer-capture"
 keywords = ["headless-chrome", "animation", "png", "capture", "aether"]
 categories = ["multimedia::video", "command-line-utilities"]
+readme = "README.md"
+include = ["src/**", "examples/**", "Cargo.toml", "README.md", "CHANGELOG.md", "LICENSE"]
 
 [dependencies]
 anyhow = "1.0.104"

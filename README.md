@@ -6,6 +6,19 @@
 **Status:** proof of concept (v0.1.0). Same input → bit-identical frames, every run,
 on any machine speed.
 
+## Install
+
+```bash
+cargo install aether-renderer-capture
+
+# It drives chrome-headless-shell (BeginFrame doesn't exist in normal Chrome's --headless=new)
+npx @puppeteer/browsers install chrome-headless-shell@stable
+export AETHER_CHROME=/path/printed/above/chrome-headless-shell
+```
+
+FFmpeg is only needed to turn the frames into video (directly, or through
+[`aether-renderer-core`](https://crates.io/crates/aether-renderer-core)).
+
 ## Usage
 
 ```bash
