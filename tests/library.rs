@@ -118,6 +118,35 @@ fn on_frame_counts_every_frame_in_order() {
     assert_eq!(*seen.lock().unwrap(), (1..=15).collect::<Vec<u64>>());
 }
 
+/// A page that stops changing must not hang screenshot mode: Chrome draws no
+/// new frame for it, and Page.captureScreenshot used to wait 30 s and time out.
+#[test]
+fn screenshot_mode_survives_a_still_page() {
+    let chrome = require_chrome!();
+    let dir = tempfile::tempdir().unwrap();
+    let page = dir.path().join("still.html");
+    std::fs::write(
+        &page,
+        "<style>html,body{margin:0;background:transparent}</style><div style='width:40px;height:40px;background:red'></div>",
+    )
+    .unwrap();
+    let opts = CaptureOptions::new(page.to_string_lossy(), chrome)
+        .size(160, 120)
+        .duration_secs(0.5)
+        .mode(aether_renderer_capture::Mode::Screenshot);
+    let started = Instant::now();
+    let mut frames = 0;
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(capture(&opts, |_, _| {
+            frames += 1;
+            Ok(())
+        }))
+        .unwrap();
+    assert_eq!(frames, 15);
+    assert!(started.elapsed() < Duration::from_secs(20), "{:?}", started.elapsed());
+}
+
 #[test]
 fn png_stream_rejects_bad_options_before_starting() {
     let chrome = require_chrome!();

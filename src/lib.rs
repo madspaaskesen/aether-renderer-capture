@@ -103,6 +103,21 @@ const FRAME_CLOCK_SHIM: &str = r#"(() => {
     step(t) {
       now = t;
       if (manualRaf) {
+        // Screenshot mode waits for a new compositor frame, and Chrome draws
+        // none when nothing on the page changed (the request then times out).
+        // Change something invisible: black at 0.1% opacity rounds to nothing
+        // in 8-bit pixels, so the frames stay identical to begin-frame mode.
+        let tick = document.getElementById("__aether_tick");
+        if (!tick) {
+          tick = document.createElement("div");
+          tick.id = "__aether_tick";
+          tick.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;" +
+            "pointer-events:none;background:#000;z-index:2147483647";
+          document.documentElement.appendChild(tick);
+        }
+        tick.style.opacity = tick.style.opacity === "0.001" ? "0.0011" : "0.001";
+      }
+      if (manualRaf) {
         const due = rafQueue;
         rafQueue = new Map();
         for (const cb of due.values()) {

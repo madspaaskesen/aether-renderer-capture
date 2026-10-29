@@ -24,6 +24,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   written as `anim.zip.partial` first, so a failed capture never leaves a ZIP that
   looks complete.
 
+### Fixed
+- Screenshot mode (the default on macOS and Windows) no longer times out after
+  30 s when the page stops changing, e.g. a title that holds still before it
+  fades out. Frames stay byte-identical to begin-frame mode.
+
 ## [0.1.1] - 2026-10-28
 
 ### Added
