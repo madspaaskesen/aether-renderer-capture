@@ -144,7 +144,11 @@ fn screenshot_mode_survives_a_still_page() {
         }))
         .unwrap();
     assert_eq!(frames, 15);
-    assert!(started.elapsed() < Duration::from_secs(20), "{:?}", started.elapsed());
+    assert!(
+        started.elapsed() < Duration::from_secs(20),
+        "{:?}",
+        started.elapsed()
+    );
 }
 
 #[test]
