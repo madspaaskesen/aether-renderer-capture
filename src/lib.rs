@@ -540,6 +540,8 @@ pub fn png_stream(opts: CaptureOptions) -> Result<(PngStream, CaptureHandle)> {
             rx,
             frame: Vec::new(),
             pos: 0,
+            received: 0,
+            on_frame: None,
         },
         CaptureHandle { thread },
     ))
@@ -571,6 +573,18 @@ pub struct PngStream {
     rx: Receiver<std::result::Result<Vec<u8>, String>>,
     frame: Vec<u8>,
     pos: usize,
+    received: u64,
+    on_frame: Option<Box<dyn FnMut(u64) + Send>>,
+}
+
+impl PngStream {
+    /// Call `f(n)` as frame `n` (1-based) of the capture reaches the reader,
+    /// on the thread that reads the stream. Meant for progress bars: the
+    /// capture is usually the slow part, and encoders report frames late.
+    pub fn on_frame(mut self, f: impl FnMut(u64) + Send + 'static) -> Self {
+        self.on_frame = Some(Box::new(f));
+        self
+    }
 }
 
 impl Read for PngStream {
@@ -580,6 +594,10 @@ impl Read for PngStream {
                 Ok(Ok(frame)) => {
                     self.frame = frame;
                     self.pos = 0;
+                    self.received += 1;
+                    if let Some(f) = &mut self.on_frame {
+                        f(self.received);
+                    }
                 }
                 Ok(Err(e)) => return Err(std::io::Error::other(e)),
                 // The capture thread is done and every frame has been read.

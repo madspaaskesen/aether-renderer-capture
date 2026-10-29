@@ -107,6 +107,18 @@ fn png_stream_matches_capture_byte_for_byte() {
 }
 
 #[test]
+fn on_frame_counts_every_frame_in_order() {
+    let chrome = require_chrome!();
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let log = std::sync::Arc::clone(&seen);
+    let (stream, handle) = png_stream(opts(chrome)).unwrap();
+    let mut stream = stream.on_frame(move |n| log.lock().unwrap().push(n));
+    std::io::copy(&mut stream, &mut std::io::sink()).unwrap();
+    handle.wait().unwrap();
+    assert_eq!(*seen.lock().unwrap(), (1..=15).collect::<Vec<u64>>());
+}
+
+#[test]
 fn png_stream_rejects_bad_options_before_starting() {
     let chrome = require_chrome!();
     let missing = CaptureOptions::new("does/not/exist.html", chrome.clone());

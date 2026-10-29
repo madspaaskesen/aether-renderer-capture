@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   produced on its own thread, that plugs straight into
   `aether_renderer_core::render_stream`. Capture errors reach the reader; dropping the
   stream stops the capture and closes Chrome. The CLI is now a thin layer over it.
+- `PngStream::on_frame(|n| ...)` reports each frame as it reaches the reader, for
+  progress bars (encoders report frames late).
 - Options are checked before Chrome starts (missing HTML file or Chrome, zero size,
   fps or frames), with a hint on how to install chrome-headless-shell.
 - CI runs the library tests on Linux, macOS and Windows, including a capture rendered
