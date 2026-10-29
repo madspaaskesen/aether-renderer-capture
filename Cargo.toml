@@ -1,6 +1,6 @@
 [package]
 name = "aether-renderer-capture"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 authors = ["Mads Paaskesen <madspaaskesen@gmail.com>"]
 description = "Deterministic HTML -> transparent PNG sequence capture via chrome-headless-shell (BeginFrame + virtual time), the HTML finger of Aether Renderer"
