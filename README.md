@@ -3,6 +3,17 @@
 > The HTML finger of Aether Renderer: turn any HTML/CSS/JS animation into a
 > **deterministic, transparent PNG sequence** — ready for `aether-renderer-core`.
 
+[![Crates.io](https://img.shields.io/crates/v/aether-renderer-capture.svg)](https://crates.io/crates/aether-renderer-capture)
+[![Downloads](https://img.shields.io/crates/d/aether-renderer-capture.svg)](https://crates.io/crates/aether-renderer-capture)
+[![CI](https://github.com/madspaaskesen/aether-renderer-capture/actions/workflows/ci.yml/badge.svg)](https://github.com/madspaaskesen/aether-renderer-capture/actions/workflows/ci.yml)
+[![docs.rs](https://docs.rs/aether-renderer-capture/badge.svg)](https://docs.rs/aether-renderer-capture)
+[![License](https://img.shields.io/crates/l/aether-renderer-capture.svg)](LICENSE)
+
+[Download](https://github.com/madspaaskesen/aether-renderer-capture/releases) ·
+[Core](https://github.com/madspaaskesen/aether-renderer-core) ·
+[GUI app](https://github.com/madspaaskesen/aether-renderer-gui) ·
+[Changelog](CHANGELOG.md)
+
 **Status:** early but working (v0.2.0), as a CLI and a library. Same input → bit-identical frames, every run,
 on any machine speed.
 
