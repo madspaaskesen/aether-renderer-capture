@@ -1,11 +1,12 @@
 [package]
 name = "aether-renderer-capture"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 authors = ["Mads Paaskesen <madspaaskesen@gmail.com>"]
 description = "Deterministic HTML -> transparent PNG sequence capture via chrome-headless-shell (BeginFrame + virtual time), the HTML finger of Aether Renderer"
 license = "MIT"
 repository = "https://github.com/madspaaskesen/aether-renderer-capture"
+documentation = "https://docs.rs/aether-renderer-capture"
 homepage = "https://github.com/madspaaskesen/aether-renderer-capture"
 keywords = ["headless-chrome", "animation", "png", "capture", "aether"]
 categories = ["multimedia::video", "command-line-utilities"]
@@ -21,9 +22,14 @@ futures = "0.3.34"
 indicatif = "0.18.6"
 tokio = { version = "1.54.1", features = ["full"] }
 url = "2.5"
+zip = { version = "2", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.191"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_System_Performance"] }
+
+[dev-dependencies]
+aether-renderer-core = "0.7"
+tempfile = "3"

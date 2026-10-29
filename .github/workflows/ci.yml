@@ -52,6 +52,22 @@ jobs:
           echo "$line"
           echo "AETHER_CHROME=${line#* }" >> "$GITHUB_ENV"
 
+      # ffmpeg for the library test that renders a capture with aether-renderer-core.
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Install ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+
+      # Library API: callbacks, png_stream, errors, early stop, and the GUI's
+      # path (png_stream -> aether_renderer_core::render_stream).
+      - name: Library tests
+        run: cargo test --release --locked
+
       # Same page twice -> frames must be byte-identical. That is the whole point
       # of this crate, so it is the test.
       - name: Capture twice and compare
@@ -64,6 +80,25 @@ jobs:
           h1=$(hash run1); h2=$(hash run2)
           echo "run1 $h1"; echo "run2 $h2"
           test "$h1" = "$h2"
+
+      # ZIP output (aether-renderer-core's other input type) must hold the same
+      # frames, in order, and be byte-identical itself between runs.
+      - name: ZIP output matches the folder
+        run: |
+          bin=target/release/aether-renderer-capture
+          "$bin" -i examples/orbit.html -o z1.zip --fps 30 -d 1
+          "$bin" -i examples/orbit.html -o z2.zip --fps 30 -d 1
+          py=$(command -v python3 || command -v python)
+          "$py" - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile("z1.zip")
+          names = z.namelist()
+          assert names == sorted(names) and len(names) == 30, names
+          for n in names:
+              assert z.read(n) == open(f"run1/{n}", "rb").read(), n
+          assert open("z1.zip", "rb").read() == open("z2.zip", "rb").read()
+          print("zip ok:", len(names), "frames")
+          PY
 
       # On Linux both modes are available and must agree pixel for pixel.
       - name: begin-frame and screenshot modes match

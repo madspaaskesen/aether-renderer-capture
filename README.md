@@ -3,7 +3,7 @@
 > The HTML finger of Aether Renderer: turn any HTML/CSS/JS animation into a
 > **deterministic, transparent PNG sequence** — ready for `aether-renderer-core`.
 
-**Status:** proof of concept (v0.1.1). Same input → bit-identical frames, every run,
+**Status:** early but working (v0.2.0), as a CLI and a library. Same input → bit-identical frames, every run,
 on any machine speed.
 
 ## Install
@@ -28,11 +28,18 @@ FFmpeg is only needed to turn the frames into video (directly, or through
 ```bash
 export AETHER_CHROME=/path/to/chrome-headless-shell
 
-# 1. PNG folder -> works with aether-renderer-core today, no changes needed
+# 1. PNG folder or ZIP -> both are aether-renderer-core inputs
 aether-renderer-capture -i anim.html -o frames --fps 30 -d 4 -s 1080x1080
 aether-renderer-core --input frames --output anim.webm --fps 30 --format webm
 
-# 2. Stream straight into ffmpeg (no files on disk)
+aether-renderer-capture -i anim.html -o anim.zip --fps 30 -d 4 -s 1080x1080
+aether-renderer-core --input anim.zip --output anim.webm --fps 30 --format webm
+
+# 2. Stream straight into aether-renderer-core 0.7+ (no files on disk)
+aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
+  | aether-renderer-core -i - -o anim.webm --fps 30 --frames 120
+
+# ...or into plain ffmpeg
 aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
   | ffmpeg -f image2pipe -framerate 30 -c:v png -i - \
            -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf 30 anim.webm
@@ -41,7 +48,7 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | Flag | Default | |
 |---|---|---|
 | `-i, --input` | — | HTML file or URL |
-| `-o, --out` | `frames` | Output folder (`frame_00000.png` …) |
+| `-o, --out` | `frames` | Output folder, or a `.zip`, of `frame_00000.png` … |
 | `--stdout` | off | Concatenated PNG stream on stdout |
 | `--fps` | 30 | |
 | `-d, --duration` | 2.0 | Seconds |
@@ -51,6 +58,48 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (begin-frame on Linux, screenshot on macOS and Windows) |
 
 Transparent pages (`html, body { background: transparent }`) give real alpha.
+
+## As a library
+
+```toml
+[dependencies]
+aether-renderer-capture = "0.2"
+```
+
+`capture` hands you each frame (async). `png_stream` runs a capture on its own
+thread and gives you a `Read` of PNG files back to back, which is exactly what
+`aether_renderer_core::render_stream` takes, so a capture goes straight into a
+video with no files in between:
+
+```rust
+use aether_renderer_capture::{png_stream, CaptureOptions};
+
+let opts = CaptureOptions::new("anim.html", "/path/to/chrome-headless-shell")
+    .size(1080, 1080)
+    .fps(30)
+    .duration_secs(4.0);
+let frames = opts.frame_count() as u32;
+
+let (stream, capture) = png_stream(opts)?; // options are checked here
+aether_renderer_core::render_stream(cfg, stream, Some(frames), |p| {
+    println!("{:.0}%", p.percent);
+})?;
+capture.wait()?; // the capture's report, or why it failed
+```
+
+If the capture fails, the stream's next read returns the error, so the render
+fails with it. Dropping the stream stops the capture and closes Chrome. Frames
+are handed over through a small buffer, so a slow encoder slows the capture
+down instead of piling frames up in memory.
+
+```rust
+// Or frame by frame, inside your own tokio runtime:
+let report = aether_renderer_capture::capture(&opts, |index, png| {
+    std::fs::write(format!("frame_{index:05}.png"), png)?;
+    Ok(())
+})
+.await?;
+```
 
 ## How it works
 
@@ -135,8 +184,9 @@ chrome-headless-shell version if you need identical output on several machines.
 Follows the capture plan that lives next to the other Aether repos.
 
 - [x] Page mode: deterministic, transparent viewport capture (this PoC)
-- [ ] Streaming input in `aether-renderer-core` (`--input -`, raw RGBA) so
-      capture encodes straight to WebM/MOV/GIF with no temp files
+- [x] ZIP output, in the layout `aether-renderer-core` reads
+- [x] Streaming into `aether-renderer-core` 0.7 (`--stdout | aether-renderer-core -i -`)
+- [x] Library API: `capture` and `png_stream` (feeds `render_stream` directly)
 - [ ] Canvas mode: auto-pick the largest `<canvas>`, grab exact pixels
       (`preserveDrawingBuffer` patch for WebGL)
 - [ ] Start/stop handshake: `window.aether?.ready()` / `window.aether?.done()`,
