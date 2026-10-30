@@ -7,3 +7,4 @@
 *.mp4
 *.gif
 /chrome-headless-shell/
+dist-mac/
