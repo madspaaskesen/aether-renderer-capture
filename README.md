@@ -28,6 +28,10 @@ npx @puppeteer/browsers install chrome-headless-shell@stable
 export AETHER_CHROME=/path/printed/above/chrome-headless-shell
 ```
 
+Or download a binary from [Releases](https://github.com/madspaaskesen/aether-renderer-capture/releases)
+(macOS Apple Silicon and Intel, Linux, Windows). The macOS binaries are signed and notarized by Apple and
+the Windows `.exe` is signed (from v0.2.0), so they run without security warnings.
+
 On **Ubuntu 23.10+** Chrome's sandbox is blocked by AppArmor. Either allow it
 (`sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`) or pass
 `--no-sandbox` (trusted pages only).
