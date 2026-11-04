@@ -10,6 +10,7 @@
 [![License](https://img.shields.io/crates/l/aether-renderer-capture.svg)](LICENSE)
 
 **[web2vid.com](https://web2vid.com)** ·
+[Docs & CLI](https://aetherrenderer.com/capture/) ·
 [Download](https://github.com/madspaaskesen/aether-renderer-capture/releases) ·
 [Core](https://github.com/madspaaskesen/aether-renderer-core) ·
 [GUI app](https://github.com/madspaaskesen/aether-renderer-gui) ·
@@ -214,4 +215,4 @@ Follows the capture plan that lives next to the other Aether repos.
 
 ---
 
-Made by Mads Paaskesen, [Hardcore Websmith](https://hardcorewebsmith.com). MIT licensed.
+Made by Mads Paaskesen at [Hardcore Websmith](https://hardcorewebsmith.com) and [MP-IT](https://mp-it.dk). MIT licensed.
