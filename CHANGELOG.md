@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-06
+
+### Added
+- **Template data: `--data <JSON>` or `--data @file.json`** (library: `CaptureOptions::data`).
+  The page reads it as `window.aether.data`, set before any of its own code runs; without
+  `--data` it is `{}`. A template keeps its defaults and lets the data override them, e.g.
+  `Object.assign({ name: "Anna" }, window.aether?.data)`. The data goes in through `JSON.parse`,
+  never as code, and is fixed before the page loads, so the same data gives the same frames.
+  Invalid JSON or an unreadable file is an error before Chrome starts.
+- `examples/lower-third-data.html`: a lower third template with its defaults in an
+  `aether-defaults` JSON block.
+
 ### Changed
 - **License: MIT OR Apache-2.0** (was MIT only), the usual choice for Rust crates. Apache-2.0 adds
   an explicit patent grant. Earlier versions stay MIT.

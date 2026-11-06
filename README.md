@@ -16,7 +16,7 @@
 [GUI app](https://github.com/madspaaskesen/aether-renderer-gui) ·
 [Changelog](CHANGELOG.md)
 
-**Status:** early but working (v0.2.0), as a CLI and a library. Same input → bit-identical frames, every run,
+**Status:** early but working (v0.3.0), as a CLI and a library. Same input → bit-identical frames, every run,
 on any machine speed.
 
 ## Install
@@ -73,14 +73,41 @@ aether-renderer-capture -i anim.html --stdout --fps 30 -d 4 \
 | `--chrome` / `AETHER_CHROME` | — | Path to **chrome-headless-shell** |
 | `--no-sandbox` / `AETHER_NO_SANDBOX` | off | Run Chrome without its sandbox (Ubuntu 23.10+, trusted pages only) |
 | `--mode` | `auto` | `begin-frame`, `screenshot`, or `auto` (begin-frame on Linux, screenshot on macOS and Windows) |
+| `--data` | — | JSON, or `@file.json`, for a template page: `window.aether.data` (see below) |
 
 Transparent pages (`html, body { background: transparent }`) give real alpha.
+
+## Templates and data
+
+One HTML file can be a **template**: it keeps a default for every parameter, and `--data`
+overrides any of them. The page reads it as `window.aether.data`, set before any of the page's
+own code runs (an empty object without `--data`, so the page also works opened in a browser):
+
+```html
+<script>
+  const data = Object.assign({ name: "Anna Jensen", title: "Producer" }, window.aether?.data);
+  document.querySelector(".name").textContent = data.name;
+</script>
+```
+
+```bash
+aether-renderer-capture -i examples/lower-third-data.html -s 1280x720 -d 4 \
+  --data '{"name":"Mads Paaskesen","title":"Founder, web2vid"}' --stdout \
+  | aether-renderer-core -i - -o lower-third.webm
+
+aether-renderer-capture -i examples/lower-third-data.html --data @speaker.json -o frames/
+```
+
+The data is fixed before the page loads, so the same data always gives the same frames. It goes
+into the page as data (through `JSON.parse`), never as code. A template may also list its
+defaults in `<script type="application/json" id="aether-defaults">`, so tools can show one input
+per field ([`examples/lower-third-data.html`](examples/lower-third-data.html) does both).
 
 ## As a library
 
 ```toml
 [dependencies]
-aether-renderer-capture = "0.2"
+aether-renderer-capture = "0.3"
 ```
 
 `capture` hands you each frame (async). `png_stream` runs a capture on its own
@@ -94,7 +121,8 @@ use aether_renderer_capture::{png_stream, CaptureOptions};
 let opts = CaptureOptions::new("anim.html", "/path/to/chrome-headless-shell")
     .size(1080, 1080)
     .fps(30)
-    .duration_secs(4.0);
+    .duration_secs(4.0)
+    .data(serde_json::json!({ "name": "Anna" })); // optional: window.aether.data
 let frames = opts.frame_count() as u32;
 
 let (stream, capture) = png_stream(opts)?; // options are checked here
@@ -204,6 +232,7 @@ Follows the capture plan that lives next to the other Aether repos.
 - [x] ZIP output, in the layout `aether-renderer-core` reads
 - [x] Streaming into `aether-renderer-core` 0.7 (`--stdout | aether-renderer-core -i -`)
 - [x] Library API: `capture` and `png_stream` (feeds `render_stream` directly)
+- [x] Template data: `--data` / `CaptureOptions::data` → `window.aether.data`
 - [ ] Canvas mode: auto-pick the largest `<canvas>`, grab exact pixels
       (`preserveDrawingBuffer` patch for WebGL)
 - [ ] Start/stop handshake: `window.aether?.ready()` / `window.aether?.done()`,

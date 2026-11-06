@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use aether_renderer_capture::sink::FrameSink;
 use aether_renderer_capture::{CaptureOptions, Mode, capture};
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -52,6 +52,23 @@ struct Args {
     /// the user namespaces the sandbox uses). Only for pages you trust.
     #[arg(long, env = "AETHER_NO_SANDBOX", value_parser = clap::builder::BoolishValueParser::new())]
     no_sandbox: bool,
+
+    /// Data for a template page, as JSON or @file.json. The page reads it as
+    /// `window.aether.data` (an empty object without --data).
+    #[arg(long, value_name = "JSON|@FILE")]
+    data: Option<String>,
+}
+
+/// `--data`: inline JSON, or `@path` to read it from a file (curl's convention).
+fn parse_data(arg: &str) -> Result<serde_json::Value> {
+    let (text, from) = match arg.strip_prefix('@') {
+        Some(path) => (
+            std::fs::read_to_string(path).with_context(|| format!("--data: can't read {path}"))?,
+            path,
+        ),
+        None => (arg.to_string(), "the argument"),
+    };
+    serde_json::from_str(&text).with_context(|| format!("--data: {from} is not valid JSON"))
 }
 
 fn parse_size(s: &str) -> Result<(u32, u32)> {
@@ -71,6 +88,10 @@ async fn main() -> Result<()> {
         .duration_secs(args.duration)
         .mode(args.mode)
         .no_sandbox(args.no_sandbox);
+    let opts = match &args.data {
+        Some(arg) => opts.data(parse_data(arg)?),
+        None => opts,
+    };
     opts.validate()?;
 
     let mut sink = FrameSink::open(&args.out, args.stdout)?;

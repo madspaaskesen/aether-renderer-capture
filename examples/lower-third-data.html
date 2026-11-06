@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  A template: every parameter has a default here, and --data overrides any of them.
+
+    aether-renderer-capture -i examples/lower-third-data.html -s 1280x720 -d 4 \
+      --data '{"name":"Mads Paaskesen","title":"Founder, web2vid"}' --stdout \
+      | aether-renderer-core -i - -o lower-third.webm
+
+  Open it in a browser and it shows the defaults.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Defaults as data, so tools (web2vid, the GUI) can show one input per field. -->
+<script type="application/json" id="aether-defaults">
+{ "name": "Anna Jensen", "title": "Producer", "accent": "#44aaff" }
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .lt { position: absolute; left: 6%; bottom: 12%; display: flex; align-items: stretch;
+    animation: in 0.6s cubic-bezier(.2, .8, .2, 1) both, out 0.5s ease-in 3.3s forwards; }
+  .bar { width: 10px; background: var(--accent); border-radius: 3px;
+    animation: grow 0.5s ease-out both; }
+  .text { padding: 14px 26px; background: rgba(12, 14, 22, 0.82); color: #fff;
+    border-radius: 0 10px 10px 0; clip-path: inset(0 100% 0 0);
+    animation: reveal 0.7s 0.2s cubic-bezier(.2, .8, .2, 1) forwards; }
+  .name { font-size: 44px; font-weight: 700; letter-spacing: -0.01em; }
+  .title { font-size: 24px; opacity: 0.8; margin-top: 4px; }
+  @keyframes in { from { transform: translateX(-30px); opacity: 0; } }
+  @keyframes grow { from { transform: scaleY(0); } }
+  @keyframes reveal { to { clip-path: inset(0 0 0 0); } }
+  @keyframes out { to { transform: translateX(-30px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="lt">
+  <div class="bar"></div>
+  <div class="text"><div class="name"></div><div class="title"></div></div>
+</div>
+<script>
+  const defaults = JSON.parse(document.getElementById("aether-defaults").textContent);
+  const data = Object.assign({}, defaults, window.aether && window.aether.data);
+  document.querySelector(".name").textContent = data.name;
+  document.querySelector(".title").textContent = data.title;
+  document.documentElement.style.setProperty("--accent", data.accent);
+</script>
+</body>
+</html>
