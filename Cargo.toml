@@ -11,7 +11,7 @@ homepage = "https://aetherrenderer.com/capture/"
 keywords = ["headless-chrome", "animation", "png", "capture", "aether"]
 categories = ["multimedia::video", "command-line-utilities"]
 readme = "README.md"
-include = ["src/**", "examples/**", "Cargo.toml", "README.md", "CHANGELOG.md", "LICENSE-MIT", "LICENSE-APACHE"]
+include = ["/src/**", "/examples/**", "/Cargo.toml", "/README.md", "/CHANGELOG.md", "/LICENSE-MIT", "/LICENSE-APACHE"]
 
 [dependencies]
 anyhow = "1.0.104"

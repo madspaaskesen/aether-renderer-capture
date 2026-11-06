@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Package `include` paths are anchored to the crate root (`/README.md` …), so a README or
+  CHANGELOG in a build folder such as `dist-mac/` can never end up in the published crate.
+
 ## [0.3.0] - 2026-11-06
 
 ### Added
