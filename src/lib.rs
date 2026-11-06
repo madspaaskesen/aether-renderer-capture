@@ -177,6 +177,9 @@ pub struct CaptureOptions {
     /// Run Chrome without its sandbox (Ubuntu 23.10+; trusted pages only).
     /// Running as root always disables it, since Chrome refuses otherwise.
     pub no_sandbox: bool,
+    /// Data for a template page, readable as `window.aether.data` before any of
+    /// the page's own code runs. `None` gives the page an empty object `{}`.
+    pub data: Option<serde_json::Value>,
 }
 
 impl CaptureOptions {
@@ -191,6 +194,7 @@ impl CaptureOptions {
             duration_secs: 2.0,
             mode: Mode::Auto,
             no_sandbox: false,
+            data: None,
         }
     }
 
@@ -217,6 +221,14 @@ impl CaptureOptions {
 
     pub fn no_sandbox(mut self, no_sandbox: bool) -> Self {
         self.no_sandbox = no_sandbox;
+        self
+    }
+
+    /// Data for a template page: `window.aether.data` in the page. A template
+    /// keeps its own defaults and lets the data override them, e.g.
+    /// `Object.assign({ name: "Anna" }, window.aether?.data)`.
+    pub fn data(mut self, data: serde_json::Value) -> Self {
+        self.data = Some(data);
         self
     }
 
@@ -388,6 +400,9 @@ where
     let shim =
         FRAME_CLOCK_SHIM.replace("__MANUAL_RAF__", if begin_frame { "false" } else { "true" });
     page.evaluate_on_new_document(shim).await?;
+    // Template data, fixed before the page loads (see `data_script`).
+    page.evaluate_on_new_document(data_script(opts.data.as_ref())?)
+        .await?;
 
     // --- 3. Load the page ----------------------------------------------------
     // While virtual time is fully paused, the `load` task never runs. So during
@@ -640,6 +655,24 @@ impl CaptureHandle {
     }
 }
 
+/// The script that gives the page `window.aether.data`. The JSON goes in as a
+/// JS string literal for `JSON.parse`, never pasted in as code, so quotes,
+/// backslashes, `</script>` and line separators in the data can't break out.
+pub(crate) fn data_script(data: Option<&serde_json::Value>) -> Result<String> {
+    let json = match data {
+        Some(value) => serde_json::to_string(value)?,
+        None => "{}".to_string(),
+    };
+    // serde_json leaves U+2028/U+2029 raw; escape them so the literal is valid
+    // in every JS engine, not only ES2019+.
+    let literal = serde_json::to_string(&json)?
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029");
+    Ok(format!(
+        "(() => {{ const a = window.aether = window.aether || {{}}; a.data = JSON.parse({literal}); }})();"
+    ))
+}
+
 pub(crate) fn to_url(input: &str) -> Result<String> {
     if input.contains("://") {
         return Ok(input.to_string());
@@ -722,4 +755,40 @@ async fn advance_virtual_time(
         .context("timed out waiting for virtualTimeBudgetExpired")?
         .ok_or_else(|| anyhow!("event stream closed"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::data_script;
+    use serde_json::{Value, json};
+
+    /// Pull the JS string literal back out of the script and decode it the way
+    /// the page does: string literal -> JSON text -> value.
+    fn round_trip(script: &str) -> Value {
+        let start = script.find("JSON.parse(").unwrap() + "JSON.parse(".len();
+        let end = script.rfind("); })();").unwrap();
+        let literal = &script[start..end];
+        let json: String = serde_json::from_str(literal).unwrap();
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn no_data_gives_an_empty_object() {
+        assert_eq!(round_trip(&data_script(None).unwrap()), json!({}));
+    }
+
+    #[test]
+    fn hostile_strings_stay_data() {
+        let data = json!({
+            "quote": "\"); throw 1; //",
+            "backslash": "C:\\path\\",
+            "script": "</script><script>alert(1)</script>",
+            "emoji": "🎬 Æble",
+            "separators": "a\u{2028}b\u{2029}c",
+            "nested": { "list": [1, 2.5, null, true] }
+        });
+        let script = data_script(Some(&data)).unwrap();
+        assert!(!script.contains('\u{2028}') && !script.contains('\u{2029}'));
+        assert_eq!(round_trip(&script), data);
+    }
 }

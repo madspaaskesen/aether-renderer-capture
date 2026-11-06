@@ -229,3 +229,41 @@ fn png_stream_into_core_render_stream() {
     assert!(info.starts_with("vp9,320,240,15"), "{info}");
     assert!(info.trim_end().ends_with(",1"), "alpha kept: {info}");
 }
+
+/// `--data` / `CaptureOptions::data`: the page sees it before its own code runs,
+/// and the same data gives the same frames.
+#[test]
+fn data_reaches_the_page_and_stays_deterministic() {
+    let chrome = require_chrome!();
+    let dir = tempfile::tempdir().unwrap();
+    let page = dir.path().join("data.html");
+    std::fs::write(
+        &page,
+        "<style>html,body{margin:0;background:transparent}</style><div id=box style='width:100vw;height:100vh'></div>\
+         <script>const d = Object.assign({ color: '#0000ff' }, window.aether.data);\
+         document.getElementById('box').style.background = d.color;</script>",
+    )
+    .unwrap();
+    let base = CaptureOptions::new(page.to_string_lossy(), chrome)
+        .size(64, 48)
+        .duration_secs(1.0 / 30.0);
+    let first_frame = |o: &CaptureOptions| {
+        let mut frame = Vec::new();
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(capture(o, |_, png| {
+                frame = png;
+                Ok(())
+            }))
+            .unwrap();
+        frame
+    };
+    let red = base.clone().data(serde_json::json!({ "color": "#ff0000" }));
+    let with_data = first_frame(&red);
+    assert_eq!(first_frame(&red), with_data, "same data, same frame");
+    assert_ne!(
+        first_frame(&base),
+        with_data,
+        "the data changed what the page drew"
+    );
+}
