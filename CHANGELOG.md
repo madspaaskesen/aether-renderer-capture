@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-06
+
 ### Added
 - **Template data: `--data <JSON>` or `--data @file.json`** (library: `CaptureOptions::data`).
   The page reads it as `window.aether.data`, set before any of its own code runs; without

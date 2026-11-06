@@ -16,7 +16,7 @@
 [GUI app](https://github.com/madspaaskesen/aether-renderer-gui) ·
 [Changelog](CHANGELOG.md)
 
-**Status:** early but working (v0.2.0), as a CLI and a library. Same input → bit-identical frames, every run,
+**Status:** early but working (v0.3.0), as a CLI and a library. Same input → bit-identical frames, every run,
 on any machine speed.
 
 ## Install
