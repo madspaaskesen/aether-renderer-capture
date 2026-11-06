@@ -35,9 +35,10 @@ Windows.
 Never commit straight to `main`: it only changes when a version is released.
 
 - When work on a new version starts: `git switch main && git pull && git switch -c release/x.y.z`.
-- Small changes are committed on `release/x.y.z`. Bigger ones get a branch from it with the
-  version in the name, `feature/x.y.z-<topic>` (or `fix/`, `docs/`), merged back into the
-  release branch.
+- Work is committed straight on `release/x.y.z` by default, so the history reads in one line.
+- A separate branch only when it helps, with the version in the name: an experiment that may be
+  thrown away (`try/x.y.z-<topic>`), something risky, or a fix for an already released version
+  (`fix/x.y.z-<topic>` from `main`, released as a patch). Merge it back into the release branch.
 - To release: version + CHANGELOG on the release branch, PR `release/x.y.z` → `main`, merge,
   then publish and tag (see Releasing).
 - Before the first commit of a session: `git branch --show-current`. On `main`? Switch to the
