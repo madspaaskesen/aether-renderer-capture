@@ -5,6 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **License: MIT OR Apache-2.0** (was MIT only), the usual choice for Rust crates. Apache-2.0 adds
+  an explicit patent grant. Earlier versions stay MIT.
+
 ## [0.2.0] - 2026-10-29
 
 ### Added

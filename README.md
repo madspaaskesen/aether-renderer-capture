@@ -7,7 +7,7 @@
 [![Downloads](https://img.shields.io/crates/d/aether-renderer-capture.svg)](https://crates.io/crates/aether-renderer-capture)
 [![CI](https://github.com/madspaaskesen/aether-renderer-capture/actions/workflows/ci.yml/badge.svg)](https://github.com/madspaaskesen/aether-renderer-capture/actions/workflows/ci.yml)
 [![docs.rs](https://docs.rs/aether-renderer-capture/badge.svg)](https://docs.rs/aether-renderer-capture)
-[![License](https://img.shields.io/crates/l/aether-renderer-capture.svg)](LICENSE)
+[![License](https://img.shields.io/crates/l/aether-renderer-capture.svg)](#license)
 
 **[web2vid.com](https://web2vid.com)** ·
 [Docs & CLI](https://aetherrenderer.com/capture/) ·
@@ -215,4 +215,17 @@ Follows the capture plan that lives next to the other Aether repos.
 
 ---
 
-Made by Mads Paaskesen at [Hardcore Websmith](https://hardcorewebsmith.com) and [MP-IT](https://mp-it.dk). MIT licensed.
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion
+in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above,
+without any additional terms or conditions.
+
+Made by Mads Paaskesen at [Hardcore Websmith](https://hardcorewebsmith.com) and [MP-IT](https://mp-it.dk).
